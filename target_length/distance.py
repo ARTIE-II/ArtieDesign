@@ -3,7 +3,7 @@ from matplotlib import pyplot as plt
 import csv
 
 m_ar = 66.337316
-endf_file = "endf_ar.csv"
+endf_file = "../data/endf_ar.csv"
 
 energy = []
 cross_section = []
