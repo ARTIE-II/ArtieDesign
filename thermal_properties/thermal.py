@@ -34,6 +34,8 @@ c_p_over_c_v_LAr = 1.67 # no units
 triple_point_LAr = 83.8 # K
 boiling_point_LAr = 87.3 # K
 freezing_point_LAr = 83.8 # K
+liquid_LAr = (boiling_point_LAr + freezing_point_LAr) / 2.0
+T_rise = boiling_point_LAr - liquid_LAr
 rho_triple_point_LAr = 1.417    # g cm^-3
 rho_boiling_point_LAr = 1.396   # g cm^-3
 rho_LAr = 1.3973
@@ -92,7 +94,7 @@ class ARTIE:
         self.l_annulus = self.cfg['l_annulus']
         self.z_al_LAr = self.cfg['z_al_LAr']
 
-        self.V_LAr = np.pi * self.r_LAr * self.r_LAr * self.l_LAr
+        self.V_LAr = np.pi * (self.r_LAr*self.r_LAr + self.r_annulus_outer_i*self.r_annulus_outer_i - self.r_annulus_inner_i*self.r_annulus_inner_i) * self.l_LAr
 
     def Rayleigh_number(self):
         return Rayleigh_const * np.power(self.l_LAr, 3)
@@ -150,7 +152,10 @@ class ARTIE:
         )
     
     def tau_alpha(self):
-        return (gamma_LAr * rho_LAr * np.pi * self.r_LAr*self.r_LAr * self.l_LAr/(300-85)) * (self.R_surf_total() + self.R_face_total())
+        return (gamma_LAr * rho_LAr * np.pi * (self.r_LAr*self.r_LAr + self.r_annulus_outer_i*self.r_annulus_outer_i - self.r_annulus_inner_i*self.r_annulus_inner_i) * self.l_LAr/(300-85)) * (self.R_surf_total() + self.R_face_total())
+
+    def tau_beta(self):
+        return (beta_LAr * rho_LAr * T_rise * np.pi * (self.r_LAr*self.r_LAr + self.r_annulus_outer_i*self.r_annulus_outer_i - self.r_annulus_inner_i*self.r_annulus_inner_i) * self.l_LAr/(300-85)) * (self.R_surf_total() + self.R_face_total())
 
     def tau_alpha_vac_r(self, r_val):
         self.r_vac_o = self.r_steel_o + r_val
@@ -158,7 +163,8 @@ class ARTIE:
         self.r_annulus_outer_i = self.r_annulus_inner_i + self.delta_r_annulus
         self.r_annulus_outer_o = self.r_annulus_outer_i + self.delta_r_annulus_outer
         self.r_foam_o = self.r_annulus_outer_o + self.delta_r_foam
-        tau = self.tau_alpha()
+        self.V_LAr = np.pi * (self.r_LAr*self.r_LAr + self.r_annulus_outer_i*self.r_annulus_outer_i - self.r_annulus_inner_i*self.r_annulus_inner_i) * self.l_LAr
+        tau = self.tau_alpha() + self.tau_beta()
         self.r_vac_o = self.cfg['r_vac_o']       
         self.r_annulus_inner_i = self.cfg['r_annulus_inner_i']
         self.r_annulus_outer_i = self.cfg['r_annulus_outer_i']
@@ -198,18 +204,18 @@ class ARTIE:
             marker='x',
             linestyle='',
             color='r',
-            label=r"$\tau_{\alpha}(r=$"+f"{self.r_vac_o:.2f})={v1_tau_alpha:.2f}"
+            label=r"$[\tau_{\alpha} + \tau_{\beta}](r=$"+f"{self.r_vac_o:.2f})={v1_tau_alpha:.2f}"
         )
         axs.plot(
             v1_r_zero, v1_tau_alpha_zero,
             marker='x',
             linestyle='',
             color='g',
-            label=r"$\tau_{\alpha}(r=0) = $" + f"{v1_tau_alpha_zero:.2f}"
+            label=r"$[\tau_{\alpha} + \tau_{\beta}](r=0) = $" + f"{v1_tau_alpha_zero:.2f}"
         )
         axs.set_xlabel(r"$\Delta r$" + " [cm]")
-        axs.set_ylabel(r"$\tau_{\alpha}$" + " [s]")
-        axs.set_title(r"$\Delta r$" + " Vacuum shell vs. " + r"$\tau_{\alpha}$")
+        axs.set_ylabel(r"$\tau_{\alpha} + \tau_{\beta}$" + " [s]")
+        axs.set_title(r"$\Delta r$" + " Vacuum shell vs. " + r"$\tau_{\alpha} + \tau_{\beta}$")
         plt.legend()
         plt.tight_layout()
         plt.show()
@@ -219,9 +225,11 @@ class ARTIE:
 if __name__ == "__main__":
     artie = ARTIE()
     print(ArtieII_config)
+    print(artie.V_LAr / 1000)
     print(artie.R_surf_total())
     print(artie.tau_alpha())
     print(artie.tau_alpha()/3600)
     print(artie.rate())
+    
 
     artie.plot_vac_r()
